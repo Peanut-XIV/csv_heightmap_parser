@@ -10,6 +10,13 @@
 
 #define BUFFSIZE 20000
 
+#define MAX_SEGMENT_COUNT 100
+
+#define Params_Default__tile_width 1000
+#define Params_Default__tile_height 1000
+#define Params_Default__min_field_size 5
+#define Params_Default__max_field_size 7
+
 void print_usage(void){
 	printf(
 "usage: splitter [options] <source_file> <destination_dir>\n\n"
@@ -30,23 +37,27 @@ void print_usage(void){
 	);
 }
 
-int parse_args (int argc, char* argv[], Params* params) {
-	params->tile_width = 1000;
-	params->tile_height = 1000;
-	params-> min_field_size = 5;
-	params-> max_field_size = 7;
-	params-> eol_flag = EOL_AUTO;
+int parse_args(int argc, char* argv[], Params* params) {
+	params->tile_width = Params_Default__tile_width;
+	params->tile_height = Params_Default__tile_height;
+	params->min_field_size = Params_Default__min_field_size;
+	params->max_field_size = Params_Default__max_field_size;
+	params->eol_flag = EOL_AUTO;
+
 	if (argc < 3) {
 		printf("Error: Expected at least 2 arguments and got %d", argc);
 		return 1;
 	}
+
 	// get source and destination
 	strlcpy(params->source, argv[argc - 2], PATH_MAX);
 	strlcpy(params->dest, argv[argc - 1], PATH_MAX);
+
 	// skip program name and calc remaining number of args
 	argv = argv + 1;
 	argc -= 3;
 	char* arg;
+
 	// iterate over options
 	while (argc > 0) {
 		arg = argv[0];
@@ -63,7 +74,7 @@ int parse_args (int argc, char* argv[], Params* params) {
 				printf("Error: Missing argument for option `-h`\n");
 				return 1;
 			}
-			if (val < 0 || val > 65535) {
+			if (val < 0 || val > USHRT_MAX) {
 				printf("Error: Invalid value for option `-h`\n");
 				return 1;
 			} else if (val != 0) {
@@ -81,7 +92,7 @@ int parse_args (int argc, char* argv[], Params* params) {
 				printf("Error: Missing argument for option `-w`\n");
 				return 1;
 			}
-			if (val < 0 || val > 65535) {
+			if (val < 0 || val > USHRT_MAX) {
 				printf("Error: Invalid value for option `-w`\n");
 				return 1;
 			} else if (val != 0) {
@@ -99,7 +110,7 @@ int parse_args (int argc, char* argv[], Params* params) {
 				printf("Error: Missing argument for option `-m`\n");
 				return 1;
 			}
-			if (val < 0 || val > 255) {
+			if (val < 0 || val > UCHAR_MAX) {
 				printf("Error: Invalid value for option `-m`\n");
 				return 1;
 			} else if (val != 0) {
@@ -117,7 +128,7 @@ int parse_args (int argc, char* argv[], Params* params) {
 				printf("Error: Missing argument for option `-M`\n");
 				return 1;
 			}
-			if (val < 0 || val > 255) {
+			if (val < 0 || val > UCHAR_MAX) {
 				printf("Error: Invalid value for option `-M`\n");
 				return 1;
 			} else if (val != 0) {
@@ -174,7 +185,7 @@ int parse_config_file_line(const Segment* line, Config* conf){
 	}
 	// find keyword delimitations
 	int line_size = line->end - line->start;
-	char* value_start = index(line->start, '=');
+	char* value_start = memchr(line->start, '=', line_size);
 	if (value_start == NULL){
 		printf("Error: invalid statement, equal sign missing\n");
 		return 1;
@@ -189,6 +200,8 @@ int parse_config_file_line(const Segment* line, Config* conf){
 	char tile_h[] = "tile_height";
 	char source[] = "source";
 	char dest[] = "dest";
+
+	const char MAX_SPACE_EQ_TO_VAL = 100;
 
 	if (match_words(line->start, minfield, sizeof(minfield) - 1)){
 		conf->min_field_size = atoi(value_start);
@@ -223,7 +236,7 @@ int parse_config_file_line(const Segment* line, Config* conf){
 		}
 	}
 	else if (match_words(line->start, source, sizeof(source) - 1)){
-		char* first_quote = memchr(value_start, '"', 100);
+		char* first_quote = memchr(value_start, '"', MAX_SPACE_EQ_TO_VAL);
 		if (first_quote == NULL) {
 			printf("Error: first quotation mark around source path not found\n");
 			return 1;
@@ -246,7 +259,7 @@ int parse_config_file_line(const Segment* line, Config* conf){
 		strlcpy(conf->source, path_start, size + 1); // +1 for \0
 	}
 	else if (match_words(line->start, dest, sizeof(dest) - 1)){
-		char* first_quote = memchr(value_start, '"', 100);
+		char* first_quote = memchr(value_start, '"', MAX_SPACE_EQ_TO_VAL);
 		
 		if (first_quote == NULL) {
 			printf("Error: first quotation mark around dest path not found\n");
@@ -270,7 +283,8 @@ int parse_config_file_line(const Segment* line, Config* conf){
 		strlcpy(conf->dest, path_start, size + 1); // +1 for \0
 	}
 	else {
-		char* string = malloc(1000);
+		const short ERR_MSG_LEN = 1000;
+		char* string = malloc(ERR_MSG_LEN);
 		if (string != NULL) {
 			strlcpy(string, line->start, line_size);
 			string[line_size] = '\0';
@@ -320,7 +334,7 @@ int get_config(const char* path, Config* conf){
 	}
 
 	// there shouldn't even be 100 real lines.
-	Segment lines[100] = {0};
+	Segment lines[MAX_SEGMENT_COUNT] = {0};
 	// read lines
 	char* p_start = buff;
 	char* p_end;
@@ -342,7 +356,7 @@ int get_config(const char* path, Config* conf){
 		// save line if 1st char of identifier is a letter
 		if ((*p_start>='a' &&  *p_start<='z') || (*p_start>='A' && *p_start<='Z')) {
 			printf("saving line %d\n", read_lines);
-			if (saved_lines >= 100) {
+			if (saved_lines >= MAX_SEGMENT_COUNT) {
 				printf("too many lines to parse, skipping\n");
 				break;
 			}

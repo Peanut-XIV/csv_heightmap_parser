@@ -18,7 +18,7 @@ int test_EOL() {
 
 	char string_1[] = "qsmlmjhfqsljfmqslfhqmdljf,qsldfjhqsdfhjlqskdf,qsljfqsljif\n";
 	RowInfo info = {string_1, 0, -1};
-	if (identify_line(&info, 1000)) {
+	if (identify_line(&info, sizeof(string_1))) {
 		printf("\t\tSimple UNIX EOL detection: " FAIL("FAILED") "\n");
 		fail_count += 1;
 	} else {
@@ -27,7 +27,7 @@ int test_EOL() {
 
 	char string_2[] = "qsmlmjhfqsljfmqslfhqmdljf,qsldfjhqsdfhjlqskdf,qsljfqsljif\r\n";
 	RowInfo info2 = {string_1, 0, -1};
-	if (identify_line(&info, 1000)) {
+	if (identify_line(&info, sizeof(string_2))) {
 		printf("\t\tSimple DOS EOL detection: " FAIL("FAILED") "\n");
 		fail_count += 1;
 	} else {
@@ -44,7 +44,7 @@ int test_long_row(EOL_t ftype) {
 	char path_unix[] = "/Users/louis/Programming/internship/c_parser/tests/inputs/sniffer_long_row_UNIX.csv";
 	char* type_name = ftype==UNIX ? "UNIX" : "DOS";
 	char* path = ftype==UNIX ? path_unix : path_dos;
-	size_t MAXI_LINE = 400000;
+	const size_t MAXI_LINE = 400000;
 
 
 	char* buffer_p = calloc(MAXI_LINE, 1);
@@ -80,7 +80,8 @@ int test_long_row(EOL_t ftype) {
 	}
 
 	char failed = 0;
-	if (info.count != 47731) {
+	const int EXPECTED_VALUE_COUNT = 47731;
+	if (info.count != EXPECTED_VALUE_COUNT) {
 		printf("\t\t%s: " FAIL("Failed counting number of newlines in %s file") "\n", test_name, type_name);
 		print_RowInfo(&info);
 		failed = 1;

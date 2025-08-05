@@ -42,6 +42,8 @@
  */
 
 #define ERR_MSG_SIZE 1000 // Arbitrary value
+#define SMALL_ERR_MSG_SIZE 100 // Arbitrary value
+#define PARSING_ERR_LIMIT 5
 
 # define USAGE "Usage: benchmark [config path]\n"
 
@@ -104,11 +106,18 @@ void specify_os_error_and_exit(void){
 }
 
 void print_size_info(off_t bytes){
-	off_t B = bytes % 1024;
-	off_t KiB = (bytes >> 10) % 1024;
-	off_t MiB = (bytes >> 20) % 1024;
-	off_t GiB = (bytes >> 30) % 1024;
-	off_t TiB = (bytes >> 40) % 1024;
+	off_t total_count = bytes;
+	const char log2_1024 = 10;
+
+	off_t B = total_count % 1024;
+	total_count <<= log2_1024;
+	off_t KiB = (total_count) % 1024;
+	total_count <<= log2_1024;
+	off_t MiB = (total_count) % 1024;
+	total_count <<= log2_1024;
+	off_t GiB = (total_count) % 1024;
+	total_count <<= log2_1024;
+	off_t TiB = (total_count) % 1024;
 
 	printf("Object is of size : %lli bytes\n", bytes);
 	printf("or %lli TiB, %lli GiB, %lli MiB, %lli KiB & %lli bytes.\n",
@@ -156,26 +165,34 @@ int parse_readbuffer_line(char* start, char** end, ParserConfig* conf, float* ou
 	off_t offset;
 
 	for (
-		size_t count = 0 ;
-		(count < conf->line.field_count) && (*prev != endl) && (errcount < 5) ;
-		count++
-	) {
+		size_t count = 0 ; (count < conf->line.field_count) ; count++) {
 		errno = 0;
 		fend = current;
 		outptr[count] = strtof(current, &fend);
+
 		if (fend == current) {
 			fend = index(current, ','); // TODO: replace by a `sep` variable
-			if (fend == NULL) errcount += 5;
+			if (fend == NULL) errcount += PARSING_ERR_LIMIT;
 		}
+
 		offset = fend - current;
-		if (((size_t) offset < conf->field.min) || ((size_t) offset > conf->field.max) || errno) { //write down error in flag
+		if (
+			((size_t) offset < conf->field.min)
+			|| ((size_t) offset > conf->field.max)
+			|| errno
+		) { //write down error in flag
 			errcount += 1;
 		}
+
 		prev = fend;
 		current = fend + 1;
+
+		if ((*prev == endl) || (errcount >= PARSING_ERR_LIMIT)) break;
 	}
+
 	if (*fend == '\n') fend++;
 	*end = fend;
+
 	return errcount;
 }
 
@@ -192,7 +209,7 @@ int parse_chunk(char** start, Config* conf, ParserConfig* pconf, float** outptr)
 
 	for (int row = 0; row < (conf->tile_height * 2); row ++) {
 		errcount += parse_readbuffer_line(current_rd, &end_rd, pconf, current_out);
-		if (errcount >= 5) {
+		if (errcount >= PARSING_ERR_LIMIT) {
 			printf("too many errors\n");
 			UNRECOVERABLE = 1;
 			break;
@@ -355,11 +372,10 @@ int check_dest_dir(char* dest_dir) {
 		}
 	}
 
-	int entries = 0;
+	int hidden_entries = 0;
 	int non_hidden_entries = 0;
 
 	while ((ep = readdir(dp))) {
-		entries++;
 
 		if (ep->d_name[0] != '.') {
 
@@ -392,6 +408,10 @@ int check_dest_dir(char* dest_dir) {
 					printf("`%s`, an unknown entry type\n", ep->d_name);
 					break;
 			}
+		} else {
+			// is entry just current dir or parent dir
+			char cur_par = strcmp(ep->d_name, ".") || strcmp(ep->d_name, "..");
+			if (!cur_par) hidden_entries++;
 		}
 	}
 
@@ -400,12 +420,12 @@ int check_dest_dir(char* dest_dir) {
 		return EX_OSERR;
 	}
 
-	if (non_hidden_entries) return EX_TEMPFAIL;
+	if (non_hidden_entries) return EX_TEMPFAIL; // should not happen
 
-	if (entries) {
+	if (hidden_entries) {
 		printf(
 			"Warning: there are %d hidden files and/or directories in"
-			" the output directory. They will be ignored.\n", entries
+			" the output directory. They will be ignored.\n", hidden_entries
 		);
 	}
 
@@ -435,7 +455,7 @@ void handle_dest_dir_check(int err) {
 }
 
 void output_open_print_err(int err) {
-	char errbuf[100];
+	char errbuf[SMALL_ERR_MSG_SIZE];
 
 	switch (err) {
 		case EACCES:
@@ -788,8 +808,8 @@ int main(int argc, char* argv[]){
 		rdbuff.start = mmap(NULL, rdbuff.bytesize, PROT_READ, MAP_PRIVATE|MAP_FILE, input_fd, file_offset);
 
 		if (rdbuff.start == MAP_FAILED) {
-			char msg[100] = {0};
-			int err = handle_mmap_error(errno, msg, 100);
+			char msg[SMALL_ERR_MSG_SIZE] = {0};
+			int err = handle_mmap_error(errno, msg, SMALL_ERR_MSG_SIZE);
 			die(msg, err);
 		}
 

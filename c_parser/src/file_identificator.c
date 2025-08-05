@@ -18,12 +18,12 @@ int print_RowInfo(RowInfo* ri_p) {
 	}
 }
 
-int identify_line(RowInfo* info, size_t max_length) {
-	if (max_length > MAX_LINE_SIZE) max_length = MAX_LINE_SIZE;
+int identify_line(RowInfo* info, size_t max_line_len) {
+	if (max_line_len > MAX_LINE_SIZE) max_line_len = MAX_LINE_SIZE;
 	info->eol_flag = EOL_AUTO;
 	int32_t counter = 1; // Always at least 1 field in a row, even if empty
 	char* i;
-	for (i=info->string ; (i < info->string + max_length); ++i){
+	for (i=info->string ; (i < info->string + max_line_len); ++i){
 		counter += (*i == ',');
 		if (*i == '\n'){
 			// printf("last char values = [%hhu, %hhu, %hhu]\n", i[-1], i[0], i[1]);
