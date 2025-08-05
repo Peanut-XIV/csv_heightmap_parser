@@ -798,9 +798,10 @@ int main(int argc, char* argv[]){
 
 	printf("Setup finished, starting processing\n");
 
-	char WORK_FINISHED = 0;
+	char INPUT_READING_COMPLETE = 0;
 
-	while(!WORK_FINISHED) {
+	// We don't know the number of rows in advance so no for loop
+	while(!INPUT_READING_COMPLETE) {
 		printf("processing chunk [%d]\n", tile_row);
 		// map input file to memory
 		errno = 0;
@@ -819,7 +820,7 @@ int main(int argc, char* argv[]){
 		int read_rows = read_chunk(
 			&rdbuff, &cpbuff, &row_lo,
 			&relative_offset, &true_offset, &file_offset, file_size,
-			&WORK_FINISHED
+			&INPUT_READING_COMPLETE
 		);
 
 		printf("data successfully converted to float [%d]\n", tile_row);
@@ -828,7 +829,7 @@ int main(int argc, char* argv[]){
 
 		// comp
 		// Only compute as much as was parsed
-		if (WORK_FINISHED) {
+		if (INPUT_READING_COMPLETE) {
 			// calc write buff row count again
 			printf("last chunk reached [%d]\n", tile_row);
 			pvbuff.row_count = read_rows >> 2;
@@ -862,7 +863,6 @@ int main(int argc, char* argv[]){
 		free(wrbuff.buffer);
 		printf("chunk processed [%d]\n", tile_row);
 
-		// We don't know the number of rows in advance
 		tile_row++;
 	}
 

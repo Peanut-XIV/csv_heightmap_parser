@@ -37,6 +37,7 @@ void print_usage(void){
 	);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 int parse_args(int argc, char* argv[], Params* params) {
 	params->tile_width = Params_Default__tile_width;
 	params->tile_height = Params_Default__tile_height;
@@ -170,6 +171,7 @@ int match_words(const char* s1, const char* s2, size_t len){
 	return 1;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 int parse_config_file_line(const Segment* line, Config* conf){
 	if (
 		line->start==NULL
