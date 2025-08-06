@@ -649,9 +649,19 @@ void write_buffers_to_files(WriteBuffer *wr, Config* cf, int tile_row){
 			// fill buffer
 			FileBuffer *fb = wr->file_buffers + i;
 
+			// TODO: handle write errors
+			errno = 0;
 			unsigned int written_bytes = write(ofd, fb->buffer, fb->bytesize);
+			int errval = errno;
 
-			if (written_bytes != fb->bytesize) {
+			if (written_bytes < 0) {
+				printf(
+					"ERROR n°%d: %s while writing to file %s\n",
+					errval, strerror(errval), path
+				);
+			}
+
+			else if (written_bytes != fb->bytesize) {
 				printf(
 					"error: discrepancy between buffer size and number of bytes"
 					"written... : expected %lu, wrote %d\n",
