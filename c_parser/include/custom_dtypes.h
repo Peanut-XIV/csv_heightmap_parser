@@ -105,3 +105,12 @@ typedef struct {
 	LineInfo line;
 	FieldInfo field;
 } ParserConfig;
+
+typedef struct {
+	char* buffer;
+	size_t bytesize;
+	size_t row_length;
+	size_t row_bytesize;
+	size_t row_count;
+	int eol_size;
+} FullFileBuffer;

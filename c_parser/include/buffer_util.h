@@ -2,8 +2,29 @@
 #include "../include/custom_dtypes.h"
 #endif
 
-void init_ReadBufferStruct(ReadBuffer *rb, const RowLayout* row_lo, const Config* cf);
+void init_ReadBufferStruct(
+	ReadBuffer *rb,
+	const RowLayout* row_lo,
+	const Config* cf
+);
 
-void init_CompBufferStruct(CompBuffer *cb, const RowLayout *row_lo, const Config *cf);
+void init_CompBufferStruct(
+	CompBuffer *cb,
+	const RowLayout *row_lo,
+	const Config *cf
+);
 
-void init_ProcValBufferStruct(ProcValBuffer *pvb, const RowLayout *row_lo, const Config *cf);
+void init_ProcValBufferStruct(
+	ProcValBuffer *pvb,
+	const RowLayout *row_lo,
+	const Config *cf
+);
+
+void init_FullFileBuffer(
+	FullFileBuffer *ff,
+	size_t row_length,
+	size_t row_count,
+	char field_size,
+	char sep_size,
+	char eol_size
+);

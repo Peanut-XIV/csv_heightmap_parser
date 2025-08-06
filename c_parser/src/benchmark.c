@@ -517,6 +517,61 @@ void output_open_print_err(int err) {
 	}
 }
 
+void output_fullfile_open_print_err(int err) {
+	char errbuf[SMALL_ERR_MSG_SIZE];
+
+	switch (err) {
+		case EACCES:
+			printf("Writing autorization to file denied\n");
+			break;
+
+		case EMFILE:
+		case EDQUOT:
+		case ENOSPC:
+			printf("Out of disk quota, too many inodes, or too many files opened\n");
+			break;
+
+		case EAGAIN:
+		case EISDIR:
+		case ENXIO:
+		case EOPNOTSUPP:
+		case EROFS:
+		case ETXTBSY:
+			printf("file is not writable!!!\n");
+			break;
+
+		case EINTR:
+			printf("Interrupted by a signal\n");
+			break;
+
+		case ELOOP:
+			printf("Too many symlinks\n");
+			break;
+
+		case ENAMETOOLONG:
+			printf("path element too long\n");
+			break;
+
+		case ENOTDIR:
+			printf("one of the elements in the path may not be a dir\n");
+			break;
+
+		case EEXIST:
+		case EILSEQ:
+		case EBADF:
+		case EOVERFLOW:
+		case EDEADLK:
+		case ENOENT:
+		case EFAULT:
+		case EINVAL:
+		case EIO:
+		default:
+			strerror_r(err, errbuf, sizeof(errbuf));
+			printf("Unexpected error: %s\n", errbuf);
+			break;
+	}
+}
+
 void subsample(CompBuffer* cpb, ProcValBuffer* pvb) {
 	// redefined with a shorter name within this scope
 	int r_len = pvb->row_length;
@@ -675,6 +730,60 @@ void write_buffers_to_files(WriteBuffer *wr, Config* cf, int tile_row){
 	}
 }
 
+int write_FullFileBuffer_to_file(FullFileBuffer *ff, Config* cf){
+	char path[PATH_MAX];
+	int char_count =
+		snprintf(path, PATH_MAX, "%s/resized_full.csv", cf->dest);
+	if (char_count >= PATH_MAX) {
+		printf("\n");
+		die("pathname too big!", EX_SOFTWARE);
+	}
+
+	// file at `path` will be created, written to, then closed,
+	// then opened, then appended to, then closed,
+	// then opened, then appended to, then closed,
+	// ...
+
+	errno = 0;
+	int openflags = O_WRONLY | O_CREAT | O_APPEND;
+	int modflags = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+	int ofd = open(path, openflags, modflags);
+	int err = errno;
+
+	if (ofd < 0) {
+		printf("an error occured while opening an output file\n");
+		printf("path: %s\n", path);
+
+		output_fullfile_open_print_err(err);
+		return 1;
+	}
+
+	errno = 0;
+	unsigned int written_bytes = write(ofd, ff->buffer, ff->bytesize);
+	int errval = errno;
+
+	if (written_bytes < 0) {
+		printf(
+			"ERROR n°%d: %s while writing to file %s\n",
+			errval, strerror(errval), path
+		);
+		close(ofd);
+		return 1;
+	}
+
+	if (written_bytes != ff->bytesize) {
+		printf(
+			"error: discrepancy between buffer size and number of bytes"
+			"written... : expected %lu, wrote %d\n",
+			ff->bytesize,
+			written_bytes
+		);
+	}
+
+	close(ofd);
+	return 0;
+}
+
 void fill_filebuffers(ProcValBuffer *pv, WriteBuffer *wr){
 	// offset between the beginning of pv buffer and the beginning
 	// of the current row
@@ -738,29 +847,6 @@ void fill_filebuffers(ProcValBuffer *pv, WriteBuffer *wr){
 
 		row_start += pv->row_length;
 	}
-}
-
-typedef struct {
-	char* buffer;
-	size_t row_length;
-	size_t row_bytesize;
-	size_t row_count;
-	int eol_size;
-} FullFileBuffer;
-
-void init_FullFileBuffer(
-	FullFileBuffer *ff,
-	size_t row_length,
-	size_t row_count,
-	char field_size,
-	char sep_size,
-	char eol_size
-) {
-	ff->buffer = NULL;
-	ff->row_length = row_length;
-	ff->row_bytesize = row_length * (field_size + sep_size) - sep_size + eol_size;
-	ff->row_count = row_count;
-	ff->eol_size = eol_size;
 }
 
 void fill_fullfile_buffer(FullFileBuffer *ff, WriteBuffer *wr){
@@ -870,6 +956,8 @@ int main(int argc, char* argv[]){
 
 	char INPUT_READING_COMPLETE = 0;
 
+	char FULLFILE_FAILED = 0;
+
 	// We don't know the number of rows in advance so no for loop
 	while(!INPUT_READING_COMPLETE) {
 		printf("processing chunk [%d]\n", tile_row);
@@ -922,15 +1010,35 @@ int main(int argc, char* argv[]){
 			die("Out of Memory (malloc wrbuff->buffer)", EX_OSERR);
 
 		asign_filebuffers(&wrbuff);
+
+		FullFileBuffer ffbuff = {0};
+		init_FullFileBuffer(
+			&ffbuff,
+			pvbuff.row_length,
+			pvbuff.row_count,
+			conf.output_field_size,
+			row_lo.sep_size,
+			row_lo.eol_size
+		);
+		ffbuff.buffer = malloc(ffbuff.bytesize);
+		if(ffbuff.buffer == NULL)
+			die("Out of Memory (malloc ffbuff->buffer)", EX_OSERR);
+
 		printf("filling file buffers [%d]\n", tile_row);
 		fill_filebuffers(&pvbuff, &wrbuff);
+		fill_fullfile_buffer(&ffbuff, &wrbuff);
+
 		printf("writing to files [%d]\n", tile_row);
 		write_buffers_to_files(&wrbuff, &conf, tile_row);
+		if (!FULLFILE_FAILED) {
+			FULLFILE_FAILED = write_FullFileBuffer_to_file(&ffbuff, &conf);
+		}
 
 
 		free(pvbuff.start);
 		free(wrbuff.file_buffers);
 		free(wrbuff.buffer);
+		free(ffbuff.buffer);
 		printf("chunk processed [%d]\n", tile_row);
 
 		tile_row++;

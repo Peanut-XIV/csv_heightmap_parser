@@ -25,3 +25,19 @@ void init_ProcValBufferStruct(ProcValBuffer *pvb, const RowLayout *row_lo, const
 	pvb->bytesize = pvb->row_count * pvb->row_length * sizeof(float);
 	pvb->start = NULL;
 }
+
+void init_FullFileBuffer(
+	FullFileBuffer *ff,
+	size_t row_length,
+	size_t row_count,
+	char field_size,
+	char sep_size,
+	char eol_size
+) {
+	ff->buffer = NULL;
+	ff->row_length = row_length;
+	ff->row_bytesize = row_length * (field_size + sep_size) - sep_size + eol_size;
+	ff->bytesize = row_count * ff->row_bytesize;
+	ff->row_count = row_count;
+	ff->eol_size = eol_size;
+}
