@@ -94,6 +94,10 @@ void specify_os_error_and_exit(void){
 		case ENOENT:
 			die("source file not found", EX_NOINPUT);
 			break;
+		case 0:
+			break;
+		default:
+			die("Unexpected code path", EX_OSERR);
 	}
 	// none of the cases matched with our errno
 	// default message formatting
@@ -244,7 +248,7 @@ int init_CompBuffer(CompBuffer *cb, const RowLayout *row_lo, const Config *cf) {
 		return 1;
 	} else {
 		comp_buff_ptr = cb->start;
-		atexit(free_comp_buff);
+		if (atexit(free_comp_buff)) die("could not set compute buffer auto exit", EX_OSERR);
 		return 0;
 	}
 }
@@ -420,7 +424,7 @@ int check_dest_dir(char* dest_dir) {
 		return EX_OSERR;
 	}
 
-	if (non_hidden_entries) return EX_TEMPFAIL; // should not happen
+	if (non_hidden_entries) return EX_TEMPFAIL;
 
 	if (hidden_entries) {
 		printf(
@@ -442,8 +446,9 @@ void handle_dest_dir_check(int err) {
 			break;
 		case EX_OSERR:
 			die("could not open or close output dir for verification", err);
+			break;
 		case EX_TEMPFAIL:
-			printf("Continuing\n");
+			die("the destination directory contains files but was expected to be empty", err);
 			break;
 		case EX_OK:
 			break;
@@ -627,7 +632,9 @@ void write_buffers_to_files(WriteBuffer *wr, Config* cf, int tile_row){
 		}
 
 		errno = 0;
-		int ofd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+		int openflags = O_WRONLY | O_CREAT | O_EXCL;
+		int modflags = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+		int ofd = open(path, openflags, modflags);
 		int err = errno;
 
 		if (ofd < 0) {
