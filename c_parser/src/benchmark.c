@@ -723,6 +723,48 @@ void fill_filebuffers(ProcValBuffer *pv, WriteBuffer *wr){
 	}
 }
 
+typedef struct {
+	char* buffer;
+	size_t row_length;
+	size_t row_bytesize;
+	size_t row_count;
+	int eol_size;
+} FullFileBuffer;
+
+void init_FullFileBuffer(
+	FullFileBuffer *ff,
+	size_t row_length,
+	size_t row_count,
+	char field_size,
+	char sep_size,
+	char eol_size
+) {
+	ff->buffer = NULL;
+	ff->row_length = row_length;
+	ff->row_bytesize = row_length * (field_size + sep_size) - sep_size + eol_size;
+	ff->row_count = row_count;
+	ff->eol_size = eol_size;
+}
+
+void fill_fullfile_buffer(FullFileBuffer *ff, WriteBuffer *wr){
+	char* writeptr = ff->buffer;
+	for (unsigned int row_idx = 0; row_idx < ff->row_count; row_idx++){
+		
+		FileBuffer *file_stop = wr->file_buffers + wr->file_buffer_count;
+		for (FileBuffer *file = wr->file_buffers; file < file_stop; file++){
+
+			char *src_row = file->buffer + row_idx * file->row_size;
+			size_t segment_length = file->row_size - ff->eol_size;
+
+			memcpy((void *) writeptr, (void *) src_row, segment_length);
+			writeptr += segment_length;
+			*writeptr++ = ',';
+		}
+		if (ff->eol_size > 1) *writeptr++ = '\r';
+		*writeptr++ = '\n';
+	}
+}
+
 int main(int argc, char* argv[]){
 	/*
 	*	Initialization phase:
