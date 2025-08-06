@@ -687,9 +687,20 @@ void fill_filebuffers(ProcValBuffer *pv, WriteBuffer *wr){
 
 			// if the value is too big, we risk losing precision at best
 			// and doing a segfault at worst.
-			// I will not check for theses cases, but I will try to educate
-			// the user about it, to prevent bad cases.
+			// I will not check for theses cases for performance, but I will try to educate
+			// the user about it, to prevent corruption.
 			for (float *val_ptr = range_start; val_ptr < range_end; val_ptr++){
+				// PERF: Investigate if loop unrolling with larger formatted
+				// strings is worth it like :
+				// print first field
+				// ...
+				// snprintf(fb_ptr, 4 * stride + 1,
+				//          ",%0*.3f,%0*.3f,%0*.3f,%0*.3f",
+				//          fsz, val[0], fsz, val[1], fsz, val[2], fsz, val[3]);
+				// ...
+				// and a simple loop for the remaining fields
+				// ...
+				// would be implemented on an OS by OS basis
 
 				snprintf(fb_ptr, stride + 1, "%0*.3f,", field_sz, *val_ptr); // stride+1 for the \0
 	
