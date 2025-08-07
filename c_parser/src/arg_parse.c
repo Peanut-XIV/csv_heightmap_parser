@@ -4,8 +4,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <string.h>
-#include <limits.h>
+#include <ctype.h>
 #include "../include/arg_parse.h"
 
 #define BUFFSIZE 20000
@@ -348,15 +347,16 @@ int get_config(const char* path, Config* conf){
 	while(p_start < f_end){
 		// ------------------- setup -------------------
 		// printf("searching for eol on line %d\n", line_counter);
-		p_end = index(p_start, '\n');
+		p_end = memchr(p_start, '\n', buff + BUFFSIZE - p_start);
+		if (p_end == NULL) p_end = buff + BUFFSIZE;
 
 		// ----------------- code here -----------------
 		// strip spaces
 		// printf("stripping spaces on line %d\n", line_counter);
-		while (*p_start == ' ') p_start++;
+		while (*p_start == ' ' && p_start < f_end) p_start++;
 
 		// save line if 1st char of identifier is a letter
-		if ((*p_start>='a' &&  *p_start<='z') || (*p_start>='A' && *p_start<='Z')) {
+		if (isalpha((int) *p_start)) {
 			printf("saving line %d\n", read_lines);
 			if (saved_lines >= MAX_SEGMENT_COUNT) {
 				printf("too many lines to parse, skipping\n");
