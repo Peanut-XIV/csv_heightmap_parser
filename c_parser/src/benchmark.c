@@ -1,23 +1,26 @@
 #include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
-
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <string.h>
 #include <sysexits.h>
-#include <unistd.h>
-#include <dirent.h>
-
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "../include/file_identificator.h"
 #include "../include/arg_parse.h"
 #include "../include/buffer_util.h"
 #include "../include/utils.h"
+
+#define ERR_MSG_SIZE 1000 // Arbitrary value
+#define SMALL_ERR_MSG_SIZE 100 // Arbitrary value
+#define PARSING_ERR_LIMIT 5
+
+#define USAGE "Usage: benchmark [config path]\n"
+
+#define die(e_msg, ex_no) _die(e_msg, ex_no, USAGE)
 
 /*  Nomenclature and expectations of the row structure of input csv files.
  *  The separator character is only the comma ',' for now.
@@ -40,14 +43,6 @@
  *  The output format is similar, but with fixed width fields, for easier
  *  parsing in the future.
  */
-
-#define ERR_MSG_SIZE 1000 // Arbitrary value
-#define SMALL_ERR_MSG_SIZE 100 // Arbitrary value
-#define PARSING_ERR_LIMIT 5
-
-# define USAGE "Usage: benchmark [config path]\n"
-
-# define die(e_msg, ex_no) _die(e_msg, ex_no, USAGE)
 
 // ================================= GLOBALS ==================================
 
