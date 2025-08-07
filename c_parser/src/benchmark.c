@@ -4,7 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
+
+# ifdef TARGET_OS_UNIX
+    #include <sysexits.h>
+# else
+    #include "../include/win_err_status_numbers.h"
+#endif
+
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
