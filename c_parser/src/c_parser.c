@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#ifdef __ARM_NEON__
 #include <stdio.h>
+#endif
 
 #include "../include/arg_parse.h"
 

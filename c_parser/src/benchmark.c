@@ -54,14 +54,23 @@
 
 // ================================= GLOBALS ==================================
 
+#ifdef _WIN32
+FILE *input_fp = NULL;
+#else
 static int input_fd = -1;
+#endif
 static void* comp_buff_ptr = NULL;
 
 // ============================= ATEXIT FUNCTIONS =============================
-
-void close_input(void){
+#ifdef _WIN32
+void close_input_fp(void){
+	fclose(input_fp);
+}
+#else
+void close_input_fd(void){
 	close(input_fd);
 }
+#endif
 
 void free_comp_buff(void){
 	free(comp_buff_ptr);
@@ -968,6 +977,7 @@ void fill_fullfile_buffer(FullFileBuffer *ff, WriteBuffer *wr){
 	}
 }
 
+#if defined(__APPLE__) || defined(__LINUX__)
 /*! initializes the row_layout struct passed in argument
  *
  * @param valid pointer to the struct to initialize.
@@ -988,6 +998,31 @@ int get_row_layout(
 ) {
 	RowInfo info = {0};
 	int errval = identify_L1(&info, input_fd);
+
+	if (errval) {
+		strncpy(err->msg, "Failed parsing 1st row of the input file", ERR_MSG_SIZE);
+		err->val = errval;
+		return 1;
+	}
+
+	if (init_RowLayout(row_lo, &info, conf)) {
+		strncpy(err->msg, "Inconclusive eol configuration and detection", ERR_MSG_SIZE);
+		err->val = EX_DATAERR;
+		return 1;
+	}
+
+	return 0;
+}
+#endif
+
+int get_row_layout_from_fp(
+	RowLayout *row_lo,
+	const Config *conf,
+	FILE *fp,
+	ErrMsg *err
+) {
+	RowInfo info = {0};
+	int errval = identify_L1_fp(&info, fp);
 
 	if (errval) {
 		strncpy(err->msg, "Failed parsing 1st row of the input file", ERR_MSG_SIZE);
@@ -1075,18 +1110,33 @@ int main(int argc, char* argv[]){
 
 	// open source file
 	printf("input file path = `%s`" ENDL, conf.source);
+	#ifdef _WIN32
+	input_fp = fopen(conf.source, O_RDONLY);
+
+	if (atexit(close_input_fp)) {
+		die("could not set file auto-closing at exit", EX_SOFTWARE);
+	}
+	if (input_fp == NULL) specify_os_error_and_exit();
+	#else
 	input_fd = open(conf.source, O_RDONLY);
-	if (atexit(close_input)) {
+	if (atexit(close_input_fd)) {
 		die("could not set file auto-closing at exit", EX_SOFTWARE);
 	}
 	// printf("input file descriptor = %d" ENDL, input_fd);
 	if (input_fd < 0) specify_os_error_and_exit();
+	#endif
 
 	ErrMsg rl_err = {0};
 	RowLayout row_lo = {0};
+	#ifdef _WIN32
+	if (get_row_layout_from_fp(&row_lo, &conf, input_fp, &rl_err)) {
+		die(rl_err.msg, rl_err.val);
+	}
+	#else
 	if (get_row_layout(&row_lo, &conf, input_fd, &rl_err)) {
 		die(rl_err.msg, rl_err.val);
 	}
+	#endif
 
 	uint64_t file_size = 0;
 
@@ -1097,7 +1147,7 @@ int main(int argc, char* argv[]){
 	#elif defined(_WIN32)
 	// on windows platforms, we will use a HANDLE pointer
 	// for the rest of the program.
-	close(input_fd);
+	if (fclose(input_fp)) die("could not close input file correctly", EX_OSERR);
 
 	ErrMsg filehandle_err = {0};
 	HANDLE input_handle = get_normal_file_handle(conf.source, &filehandle_err);

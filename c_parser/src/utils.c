@@ -18,7 +18,7 @@ size_t getpagesize(void) {
 
 
 #if defined(__APPLE__) || defined(__LINUX__)
-size_t get_file_size_fd(int fildes) {
+size_t file_size_from_fd(int fildes) {
 	struct stat st;
 	if (fstat(fildes, &st)) {
 		return 0;
@@ -28,7 +28,7 @@ size_t get_file_size_fd(int fildes) {
 #endif
 
 #if defined(_WIN32)
-uint64_t get_file_size(HANDLE file) {
+uint64_t file_size_from_handle(HANDLE file) {
 	BIG_WORD size = {0};
 	size.parts[0] = GetFileSize(file, &size.parts[1]);
 	if (size.parts[0] == INVALID_FILE_SIZE) return 0;

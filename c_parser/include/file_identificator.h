@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 #if defined(__APPLE__) || defined(__LINUX__)
 #include <stddef.h>
@@ -19,4 +20,8 @@ int print_RowInfo(RowInfo* ri_p);
 
 int identify_line(RowInfo* info, int64_t max_length);
 
+#if defined(__APPLE__) || defined(__LINUX__)
 int identify_L1(RowInfo *info, int fd);
+#endif
+
+int identify_L1_fp(RowInfo *info, FILE *fp);

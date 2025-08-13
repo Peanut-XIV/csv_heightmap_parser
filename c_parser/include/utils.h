@@ -21,7 +21,7 @@ typedef struct {
 void _die(const char e_msg[], int excode, char USAGE[MAX_USAGE]);
 
 #if defined(__APPLE__) || defined(__LINUX__)
-size_t get_file_size_fd(int fildes);
+size_t file_size_from_fd(int fildes);
 #endif
 
 #if defined(_WIN32)
