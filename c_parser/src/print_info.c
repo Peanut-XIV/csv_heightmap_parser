@@ -2,24 +2,26 @@
 #include <stdio.h>
 #include <limits.h>
 
-void print_sizes(){
-	printf("=========================\n");
-	printf("dtype         | byte size\n");
-	printf("char          | %lu\n", sizeof(char));
-	printf("short         | %lu\n", sizeof(short));
-	printf("int           | %lu\n", sizeof(int));
-	printf("long int      | %lu\n", sizeof(long int));
-	printf("long long int | %lu\n", sizeof(long long int));
-	printf("float         | %lu\n", sizeof(float));
-	printf("double        | %lu\n", sizeof(double));
-	printf("=========================\n");
+#include "../include/utils.h"
+
+void print_sizes(void){
+	printf("=========================" ENDL);
+	printf("dtype         | byte size" ENDL);
+	printf("char          | %llu" ENDL, (long long int) sizeof(char));
+	printf("short         | %llu" ENDL, (long long int) sizeof(short));
+	printf("int           | %llu" ENDL, (long long int) sizeof(int));
+	printf("long int      | %llu" ENDL, (long long int) sizeof(long int));
+	printf("long long int | %llu" ENDL, (long long int) sizeof(long long int));
+	printf("float         | %llu" ENDL, (long long int) sizeof(float));
+	printf("double        | %llu" ENDL, (long long int) sizeof(double));
+	printf("=========================" ENDL);
 }
 
 
-int main(int argc, char* argv[]){
-	printf("page size is %li bytes\n", sysconf(_SC_PAGE_SIZE));
-	printf("max path length is %d bytes\n", PATH_MAX);
-	printf("NULL pointer is %p\n", NULL);
+int main(void){
+	printf("page size is %lli bytes" ENDL, (long long int) getpagesize());
+	printf("max path length is %d bytes" ENDL, PATH_MAX);
+	printf("NULL pointer is %p" ENDL, NULL);
 	print_sizes();
 	return 0;
 }

@@ -1,11 +1,17 @@
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include "../include/arg_parse.h"
+#include "../include/utils.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #define BUFFSIZE 20000
 
@@ -18,21 +24,21 @@
 
 void print_usage(void){
 	printf(
-"usage: splitter [options] <source_file> <destination_dir>\n\n"
-"options\n\n"
-"--help   : print this message and exit.\n\n"
-"-w <int> : desired width of output tiles.\n"
-"           default value is 1000, goes from 1 to 65535, zero is default.\n\n"
-"-h <int> : desired height of output tiles.\n"
-"           default value is 1000, goes from 1 to 65535, zero is default.\n\n"
-"-m <int> : minimum field size in bytes, must not include separator.\n"
-"           default value is 5, goes from 1 to 255, zero is default.\n\n"
-"-M <int> : maximum field size in bytes, must not include separator.\n"
-"           default value is 7, goes from 1 to 255, zero is default\n\n"
-"-d / -u  : newline format of the source file. use `-d` for dos style (\\r\\n)\n"
-"           and `-u` for unix style (\\n). no flag means automatic detection.\n\n"
-"notes:\n"
-"the numeric values given in arguments must be separated from flags by a space.\n"
+"usage: splitter [options] <source_file> <destination_dir>" ENDL ENDL
+"options" ENDL ENDL
+"--help   : print this message and exit." ENDL
+"-w <int> : desired width of output tiles." ENDL
+"           default value is 1000, goes from 1 to 65535, zero is default." ENDL ENDL
+"-h <int> : desired height of output tiles." ENDL
+"           default value is 1000, goes from 1 to 65535, zero is default." ENDL ENDL
+"-m <int> : minimum field size in bytes, must not include separator." ENDL
+"           default value is 5, goes from 1 to 255, zero is default." ENDL ENDL
+"-M <int> : maximum field size in bytes, must not include separator." ENDL
+"           default value is 7, goes from 1 to 255, zero is default" ENDL ENDL
+"-d / -u  : newline format of the source file. use `-d` for dos style (\\r\\n)" ENDL
+"           and `-u` for unix style (\\n). no flag means automatic detection." ENDL ENDL
+"notes:" ENDL
+"the numeric values given in arguments must be separated from flags by a space." ENDL
 	);
 }
 
@@ -50,8 +56,15 @@ int parse_args(int argc, char* argv[], Params* params) {
 	}
 
 	// get source and destination
-	strlcpy(params->source, argv[argc - 2], PATH_MAX);
-	strlcpy(params->dest, argv[argc - 1], PATH_MAX);
+	if (strlen(argv[argc - 2]) >= PATH_MAX) {
+		printf("Error: Source Path too long" ENDL);
+	}
+
+	if (strlen(argv[argc - 1]) >= PATH_MAX) {
+		printf("Error: Destination Path too long" ENDL);
+	}
+	strncpy(params->source, argv[argc - 2], PATH_MAX);
+	strncpy(params->dest, argv[argc - 1], PATH_MAX);
 
 	// skip program name and calc remaining number of args
 	argv = argv + 1;
@@ -62,7 +75,7 @@ int parse_args(int argc, char* argv[], Params* params) {
 	while (argc > 0) {
 		arg = argv[0];
 		if (strcmp(arg, "--help") == 0) {
-			printf("[Printing help]\n");
+			printf("[Printing help]" ENDL);
 			return 1;
 		}
 		else if (strcmp(arg, "-h") == 0) {
@@ -71,11 +84,11 @@ int parse_args(int argc, char* argv[], Params* params) {
 			if (argc > 1) {
 				val = atoi(arg2);
 			} else {
-				printf("Error: Missing argument for option `-h`\n");
+				printf("Error: Missing argument for option `-h`" ENDL);
 				return 1;
 			}
 			if (val < 0 || val > USHRT_MAX) {
-				printf("Error: Invalid value for option `-h`\n");
+				printf("Error: Invalid value for option `-h`" ENDL);
 				return 1;
 			} else if (val != 0) {
 				params->tile_height = val;
@@ -89,11 +102,11 @@ int parse_args(int argc, char* argv[], Params* params) {
 			if (argc > 1) {
 				val = atoi(arg2);
 			} else {
-				printf("Error: Missing argument for option `-w`\n");
+				printf("Error: Missing argument for option `-w`" ENDL);
 				return 1;
 			}
 			if (val < 0 || val > USHRT_MAX) {
-				printf("Error: Invalid value for option `-w`\n");
+				printf("Error: Invalid value for option `-w`" ENDL);
 				return 1;
 			} else if (val != 0) {
 				params->tile_width = val;
@@ -107,11 +120,11 @@ int parse_args(int argc, char* argv[], Params* params) {
 			if (argc > 1) {
 				val = atoi(arg2);
 			} else {
-				printf("Error: Missing argument for option `-m`\n");
+				printf("Error: Missing argument for option `-m`" ENDL);
 				return 1;
 			}
 			if (val < 0 || val > UCHAR_MAX) {
-				printf("Error: Invalid value for option `-m`\n");
+				printf("Error: Invalid value for option `-m`" ENDL);
 				return 1;
 			} else if (val != 0) {
 				params->min_field_size = val;
@@ -125,11 +138,11 @@ int parse_args(int argc, char* argv[], Params* params) {
 			if (argc > 1) {
 				val = atoi(arg2);
 			} else {
-				printf("Error: Missing argument for option `-M`\n");
+				printf("Error: Missing argument for option `-M`" ENDL);
 				return 1;
 			}
 			if (val < 0 || val > UCHAR_MAX) {
-				printf("Error: Invalid value for option `-M`\n");
+				printf("Error: Invalid value for option `-M`" ENDL);
 				return 1;
 			} else if (val != 0) {
 				params->max_field_size = val;
@@ -154,12 +167,12 @@ int parse_args(int argc, char* argv[], Params* params) {
 
 void show_params(Params* paramsp) {
 	printf("Tiles are of size %d x %d, file is of type ", paramsp->tile_width, paramsp->tile_height);
-	if (paramsp->eol_flag == EOL_AUTO) printf("AUTO\n");
-	else if (paramsp->eol_flag == EOL_DOS) printf("DOS (CR+LF)\n");
-	else printf("UNIX (\\n)\n");
-	printf("Fields have a size going between %u and %u.\n", paramsp->min_field_size, paramsp->max_field_size);
-	printf("target file has path `%s`\n", paramsp->source);
-	printf("destination directory has path `%s`\n", paramsp->dest);
+	if (paramsp->eol_flag == EOL_AUTO) printf("AUTO" ENDL);
+	else if (paramsp->eol_flag == EOL_DOS) printf("DOS (CR+LF)" ENDL);
+	else printf("UNIX (\\n)" ENDL);
+	printf("Fields have a size going between %u and %u." ENDL, paramsp->min_field_size, paramsp->max_field_size);
+	printf("target file has path `%s`" ENDL, paramsp->source);
+	printf("destination directory has path `%s`" ENDL, paramsp->dest);
 }
 
 int match_words(const char* s1, const char* s2, size_t len){
@@ -178,17 +191,17 @@ int parse_config_file_line(const Segment* line, Config* conf){
 		|| (line->end - line->start <= 0)
 	) {
 		printf(
-			"reading line going from %p to %p (∆ = %li bytes)\n",
+			"reading line going from %p to %p (∆ = %lli bytes)" ENDL,
 			(void *) line->start,
 			(void *) line->end,
-			line->end - line->start
+			(long long int) (line->end - line->start)
 		);
 	}
 	// find keyword delimitations
 	int line_size = line->end - line->start;
 	char* value_start = memchr(line->start, '=', line_size);
 	if (value_start == NULL){
-		printf("Error: invalid statement, equal sign missing\n");
+		printf("Error: invalid statement, equal sign missing" ENDL);
 		return 1;
 	}
 	value_start++;
@@ -232,103 +245,118 @@ int parse_config_file_line(const Segment* line, Config* conf){
 				conf->eol_flag = EOL_AUTO;
 				break;
 			default:
-				printf("Unrecognized EOL Flag, fallback to AUTO\n");
+				printf("Unrecognized EOL Flag, fallback to AUTO" ENDL);
 				conf->eol_flag = EOL_AUTO;
 		}
 	}
 	else if (match_words(line->start, source, sizeof(source) - 1)){
 		char* first_quote = memchr(value_start, '"', MAX_SPACE_EQ_TO_VAL);
 		if (first_quote == NULL) {
-			printf("Error: first quotation mark around source path not found\n");
+			printf("Error: first quotation mark around source path not found" ENDL);
 			return 1;
 		}
 		char* path_start = first_quote + 1;
 
 		char* second_quote = memchr(path_start, '"', PATH_MAX);
 		if (second_quote == NULL) {
-			printf("Error: second quotation mark around source path not found\n");
+			printf("Error: second quotation mark around source path not found" ENDL);
 			return 1;
 		}
 		char* path_end = second_quote - 1;
 
 		int size = path_end - path_start + 1;
-		if (size >= PATH_MAX) {
-			printf("Error: source path too long\n");
+		if (size + 1 >= PATH_MAX) {
+			printf("Error: source path too long" ENDL);
 			return 1;
 		}
 
-		strlcpy(conf->source, path_start, size + 1); // +1 for \0
+		memcpy(conf->source, path_start, size);
+		conf->source[size] = '\0';
 	}
 	else if (match_words(line->start, dest, sizeof(dest) - 1)){
 		char* first_quote = memchr(value_start, '"', MAX_SPACE_EQ_TO_VAL);
 		
 		if (first_quote == NULL) {
-			printf("Error: first quotation mark around dest path not found\n");
+			printf("Error: first quotation mark around dest path not found" ENDL);
 			return 1;
 		}
 		char *path_start = first_quote + 1;
 
 		char* second_quote = memchr(path_start, '"', PATH_MAX);
 		if (second_quote == NULL) {
-			printf("Error: second quotation mark around dest path not found\n");
+			printf("Error: second quotation mark around dest path not found" ENDL);
 			return 1;
 		}
 		char* path_end = second_quote - 1;
 
 		int size = path_end - path_start + 1;
-		if (size >= PATH_MAX) {
-			printf("Error: dest path too long\n");
+		if (size + 1 >= PATH_MAX) {
+			printf("Error: dest path too long" ENDL);
 			return 1;
 		}
-
-		strlcpy(conf->dest, path_start, size + 1); // +1 for \0
+		memcpy(conf->dest, path_start, size);
+		conf->dest[size] = '\0';
 	}
 	else {
 		const short ERR_MSG_LEN = 1000;
 		char* string = malloc(ERR_MSG_LEN);
 		if (string != NULL) {
-			strlcpy(string, line->start, line_size);
+			memcpy(string, line->start, line_size);
 			string[line_size] = '\0';
-			printf("Error: Unexpected keyword in line :\n%s\n", string);
+			printf("Error: Unexpected keyword in line :" ENDL "%s" ENDL, string);
 			free(string);
 			return 1;
 		}
-		printf("Error: Unexpected keyword\n");
+		printf("Error: Unexpected keyword" ENDL);
 		return 1;
 	}
 	return 0;
 }
 
 int get_config(const char* path, Config* conf){
-	printf("READ CONFIG\n");
-	int fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		printf("Error opening file. %d: %s\n", errno, strerror(errno));
+	printf("READ CONFIG" ENDL);
+	FILE *file = fopen(path, "r");
+	if (file == NULL) {
+		printf("Error opening file. %d: %s" ENDL, errno, strerror(errno));
 		errno = 0;
 		return 1;
 	}
 
-	printf("allocating memory for reading config file\n");
+	printf("allocating memory for reading config file" ENDL);
 	char* buff = malloc(BUFFSIZE);
 	if (buff==NULL){
-		printf("Error Out of Memory :/\n");
-		close(fd);
+		printf("Error Out of Memory :/" ENDL);
+		// NOLINTNEXTLINE(cert-err33-c)
+		fclose(file);
 		return 1;
 	}
 
-	printf("pasting file content to buffer\n");
-	ssize_t len = read(fd, buff, BUFFSIZE);
+	printf("pasting file content to buffer" ENDL);
+	errno = 0;
+	ssize_t len = fread(buff, 1, BUFFSIZE, file);
+	int read_errval = errno;
 
-	close(fd);
 	if (len < 0) {
-		printf("Error reading file. %d: %s\n", errno, strerror(errno));
+		printf("Error reading file. %d: %s" ENDL, read_errval, strerror(read_errval));
 		errno = 0;
 		free(buff);
 		return 1;
 	}
 
+	errno = 0;
+	int close_err = fclose(file);
+	int close_errval = errno;
+
+	if (close_err) {
+		printf(
+			"An error occured while closing the file %d: %s" ENDL,
+			close_errval, strerror(close_errval)
+		);
+		return 1;
+	}
+
 	if (len >= BUFFSIZE) {
-		printf("Error config file too big (it's > 20 000 Bytes, why?)\n");
+		printf("Error config file too big (it's > 20 kilobytes, why?)" ENDL);
 		errno = 0;
 		free(buff);
 		return 1;
@@ -343,40 +371,40 @@ int get_config(const char* path, Config* conf){
 
 	int read_lines = 0;
 	int saved_lines = 0;
-	printf("reading buffer containing the config file's content\n");
+	printf("reading buffer containing the config file's content" ENDL);
 	while(p_start < f_end){
 		// ------------------- setup -------------------
-		// printf("searching for eol on line %d\n", line_counter);
+		// printf("searching for eol on line %d" ENDL, line_counter);
 		p_end = memchr(p_start, '\n', buff + BUFFSIZE - p_start);
 		if (p_end == NULL) p_end = buff + BUFFSIZE;
 
 		// ----------------- code here -----------------
 		// strip spaces
-		// printf("stripping spaces on line %d\n", line_counter);
+		// printf("stripping spaces on line %d" ENDL, line_counter);
 		while (*p_start == ' ' && p_start < f_end) p_start++;
 
 		// save line if 1st char of identifier is a letter
 		if (isalpha((int) *p_start)) {
-			printf("saving line %d\n", read_lines);
+			printf("saving line %d" ENDL, read_lines);
 			if (saved_lines >= MAX_SEGMENT_COUNT) {
-				printf("too many lines to parse, skipping\n");
+				printf("too many lines to parse, skipping" ENDL);
 				break;
 			}
 			lines[saved_lines].start = p_start;
 			lines[saved_lines].end = p_end;
 			saved_lines++;
 		} else {
-			//printf("not saving line %d\n", line_counter);
+			//printf("not saving line %d" ENDL, line_counter);
 		}
 		// ------------------- setup -------------------
 		p_start = p_end + 1;
 		read_lines++;
 	}
 	// parse every identified line
-	printf("parsing saved lines\n");
+	printf("parsing saved lines" ENDL);
 	for (int i=0; i<saved_lines; i++){
 		if (parse_config_file_line(&lines[i], conf)) {
-			printf("weird value detected\n");
+			printf("weird value detected" ENDL);
 			free(buff);
 			return 1;
 		}

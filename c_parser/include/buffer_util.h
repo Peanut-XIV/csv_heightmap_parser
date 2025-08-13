@@ -1,6 +1,5 @@
-#ifndef __CUSTOM_DTYPES_H
-#include "../include/custom_dtypes.h"
-#endif
+#include "custom_dtypes.h"
+#include <stdint.h>
 
 void init_ReadBufferStruct(
 	ReadBuffer *rb,
@@ -22,9 +21,9 @@ void init_ProcValBufferStruct(
 
 void init_FullFileBuffer(
 	FullFileBuffer *ff,
-	size_t row_length,
-	size_t row_count,
-	char field_size,
+	int32_t row_length,
+	int32_t row_count,
+	short field_size,
 	char sep_size,
 	char eol_size
 );

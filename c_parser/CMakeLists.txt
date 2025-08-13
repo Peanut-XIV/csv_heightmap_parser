@@ -44,6 +44,15 @@ add_executable(
 
 add_executable(print_info src/print_info.c)
 
+if(WIN32 AND CMAKE_HOST_UNIX)
+	message(
+		"The project will be compiled with mingw and will "
+		"use the following compiler: ${LOCAL_MINGW_COMPILER}"
+	)
+	set(CMAKE_C_COMPILER ${LOCAL_MINGW_COMPILER})
+	set(MINGW TRUE)
+endif()
+
 if(MSVC)
 	target_compile_options(benchmark PRIVATE /W4 /WX)
 else()

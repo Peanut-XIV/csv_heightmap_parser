@@ -1,8 +1,10 @@
-#include <stddef.h>
+#include <stdint.h>
 
-#ifndef __CUSTOM_DTYPES_H
-#include "custom_dtypes.h"
+#if defined(__APPLE__) || defined(__LINUX__)
+#include <stddef.h>
 #endif
+
+#include "custom_dtypes.h"
 
 # ifdef __ARM_NEON__
 #include <arm_neon.h>
@@ -15,6 +17,6 @@
 
 int print_RowInfo(RowInfo* ri_p);
 
-int identify_line(RowInfo* info, size_t max_length);
+int identify_line(RowInfo* info, int64_t max_length);
 
 int identify_L1(RowInfo *info, int fd);

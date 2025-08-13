@@ -2,7 +2,7 @@
 
 // can be replaced with actual error values in the future
 #define EX_USAGE       1
-#define EX_DATA_ERR    1
+#define EX_DATAERR     1
 #define EX_NOINPUT     1
 #define EX_NOUSER      1
 #define EX_NOHOST      1

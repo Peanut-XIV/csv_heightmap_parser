@@ -1,6 +1,3 @@
-#include <limits.h>
-#include <stddef.h>
-
 #ifndef __CUSTOM_DTYPES_H
 #include "custom_dtypes.h"
 #endif
