@@ -832,7 +832,7 @@ void write_buffers_to_files(WriteBuffer *wr, Config* cf, int tile_row){
 		}
 
 		errno = 0;
-		FILE *fp = fopen(path, "w");
+		FILE *fp = fopen(path, "wb");
 		int err = errno;
 
 		if (fp == NULL) {
@@ -888,7 +888,7 @@ int write_FullFileBuffer_to_file(FullFileBuffer *ff, Config* cf){
 	// ...
 
 	errno = 0;
-	FILE *fp = fopen(path, "w");
+	FILE *fp = fopen(path, "ab+");
 	int err = errno;
 
 	if (fp == NULL) {
@@ -999,8 +999,12 @@ void fill_fullfile_buffer(FullFileBuffer *ff, WriteBuffer *wr){
 			writeptr += segment_length;
 			*writeptr++ = ',';
 		}
+		writeptr--; // otherwise we get a free extra comma... and a buffer overrun
 		if (ff->eol_size > 1) *writeptr++ = '\r';
 		*writeptr++ = '\n';
+		ptrdiff_t delta = writeptr - ff->buffer;
+		ptrdiff_t expected = ff->row_bytesize * (row_idx + 1);
+		if (delta != expected) printf("wrote too much on this row"ENDL);
 	}
 }
 
@@ -1074,33 +1078,57 @@ int get_row_layout_from_fp(
  * @return 0 if the handle
  */
 HANDLE get_normal_file_handle(char* path, ErrMsg* err) {
-	HANDLE handle = INVALID_HANDLE_VALUE;
+	HANDLE search_handle = INVALID_HANDLE_VALUE;
 	WIN32_FIND_DATA ffd;
 
-	handle = FindFirstFile(path, &ffd);
-	if (handle == INVALID_HANDLE_VALUE) {
+	search_handle = FindFirstFile(path, &ffd);
+	if (search_handle == INVALID_HANDLE_VALUE) {
 		strncpy(
 			err->msg,
 			"Couldn't acquire file handle for input file... Exiting",
 			ERR_MSG_SIZE
 		);
 		err->val = EX_OSERR;
-		return handle;
+		return INVALID_HANDLE_VALUE;
 	}
 
 	DWORD attrs = ffd.dwFileAttributes;
-	ULONG archived_file = attrs & FILE_ATTRIBUTE_ARCHIVE && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
-	if (!(attrs & FILE_ATTRIBUTE_NORMAL || archived_file)) {
+	ULONG blacklist = (
+		FILE_ATTRIBUTE_DIRECTORY
+		| FILE_ATTRIBUTE_DEVICE
+		| FILE_ATTRIBUTE_VIRTUAL
+	);
+	if (attrs & blacklist) {
 		printf("input file has the following Attributes: %lx" ENDL, attrs);
 		print_file_attributes(attrs);
 		strncpy(
 			err->msg,
-			"Error: Input path may not point to a file,"
+			"Input path may not point to a file,"
 			" or may not be stored locally.",
 			ERR_MSG_SIZE
 		);
 		err->val = EX_DATAERR;
 		return INVALID_HANDLE_VALUE;
+	}
+
+	HANDLE handle = CreateFile(
+		path,
+		GENERIC_READ,
+		0,
+		NULL,
+		OPEN_EXISTING,
+		FILE_FLAG_SEQUENTIAL_SCAN,
+		NULL
+	);
+
+	if (handle == INVALID_HANDLE_VALUE) {
+		printf("failed to create file handle, err code: %ld"ENDL, GetLastError());
+		strncpy(
+			err->msg,
+			"Input path may not point to a file,"
+			" or may not be stored locally.",
+			ERR_MSG_SIZE
+		);
 	}
 
 	return handle;
@@ -1141,7 +1169,7 @@ int main(int argc, char* argv[]){
 	// open source file
 	printf("input file path = `%s`" ENDL, conf.source);
 	#ifdef _WIN32
-	input_fp = fopen(conf.source, "r");
+	input_fp = fopen(conf.source, "rb");
 
 	if (atexit(close_input_fp)) {
 		die("could not set file auto-closing at exit", EX_SOFTWARE);
@@ -1257,11 +1285,13 @@ int main(int argc, char* argv[]){
 		}
 		#elif defined(_WIN32)
 		BIG_WORD bwSize = {.full = map_offsets.fstart_to_page};
+		int64_t remaining_space = file_size - map_offsets.fstart_to_page;
+		int64_t map_size = rdbuff.bytesize < remaining_space ? rdbuff.bytesize : 0; // 0 means rest of file
 		rdbuff.start = MapViewOfFile(
 			map_handle,
 			FILE_MAP_READ,
 			bwSize.parts[1], bwSize.parts[0], //little-endian only
-			rdbuff.bytesize
+			map_size
 		);
 
 		if (rdbuff.start == NULL){
@@ -1291,7 +1321,7 @@ int main(int argc, char* argv[]){
 		if (INPUT_READING_COMPLETE) {
 			// calc write buff row count again
 			printf("last chunk reached [%d]" ENDL, tile_row);
-			pvbuff.row_count = read_rows >> 2;
+			pvbuff.row_count = read_rows / 2;
 			pvbuff.bytesize = (int64_t) pvbuff.row_count * pvbuff.row_length;
 		}
 
@@ -1340,6 +1370,7 @@ int main(int argc, char* argv[]){
 		free(wrbuff.file_buffers);
 		free(wrbuff.buffer);
 		free(ffbuff.buffer);
+
 		printf("chunk processed [%d]" ENDL, tile_row);
 
 		tile_row++;

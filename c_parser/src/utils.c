@@ -28,16 +28,21 @@ size_t file_size_from_fd(int fildes) {
 #endif
 
 #if defined(_WIN32)
-uint64_t file_size_from_handle(HANDLE file) {
-	BIG_WORD size = {0};
-	size.parts[0] = GetFileSize(file, &size.parts[1]);
+uint64_t file_size_from_handle(HANDLE file_handle) {
+	DWORDLONG size = 0;
+	if (!GetFileSizeEx(file_handle, &size)) {
+		printf("aquireing file size failed... ERR code:%d" ENDL, GetLastError());
+		return 0;
+	};
+	/*
 	if (size.parts[0] == INVALID_FILE_SIZE) {
 		printf("Error: %d" ENDL, GetLastError());
 		printf("filetype: %d\n", GetFileType(file));
 		printf("Error: %d" ENDL, GetLastError());
 		return 0;
 	}
-	return size.full;
+	*/
+	return size;
 }
 #endif
 

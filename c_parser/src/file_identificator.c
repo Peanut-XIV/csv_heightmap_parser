@@ -89,7 +89,7 @@ int identify_L1_fp(RowInfo *info, FILE *fp){
 	}
 	// read first line without moving the file pointer
 	// int len = pread(fd, l1buff, L1_BUFF_SIZE, 0);
-	int len = fread(l1buff, L1_BUFF_SIZE, 1, fp);
+	int len = fread(l1buff, 1, L1_BUFF_SIZE, fp);
 	if (len < 0) {
 		printf("pread failed" ENDL);
 		free(l1buff);
