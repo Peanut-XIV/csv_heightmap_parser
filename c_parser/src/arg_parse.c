@@ -8,6 +8,7 @@
 #include "../include/utils.h"
 
 #ifdef _WIN32
+#define _CRT_SECURE_NO_WARNINGS 1
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -56,15 +57,15 @@ int parse_args(int argc, char* argv[], Params* params) {
 	}
 
 	// get source and destination
-	if (strlen(argv[argc - 2]) >= PATH_MAX) {
+	if (strlen(argv[argc - 2]) >= MAXIMUM_PATH()) {
 		printf("Error: Source Path too long" ENDL);
 	}
 
-	if (strlen(argv[argc - 1]) >= PATH_MAX) {
+	if (strlen(argv[argc - 1]) >= MAXIMUM_PATH()) {
 		printf("Error: Destination Path too long" ENDL);
 	}
-	strncpy(params->source, argv[argc - 2], PATH_MAX);
-	strncpy(params->dest, argv[argc - 1], PATH_MAX);
+	strncpy(params->source, argv[argc - 2], MAXIMUM_PATH());
+	strncpy(params->dest, argv[argc - 1], MAXIMUM_PATH());
 
 	// skip program name and calc remaining number of args
 	argv = argv + 1;
@@ -186,8 +187,8 @@ int match_words(const char* s1, const char* s2, size_t len){
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 int parse_config_file_line(const Segment* line, Config* conf){
 	if (
-		line->start==NULL
-		|| line->end==NULL
+		(line->start==NULL)
+		|| (line->end==NULL)
 		|| (line->end - line->start <= 0)
 	) {
 		printf(
@@ -196,9 +197,10 @@ int parse_config_file_line(const Segment* line, Config* conf){
 			(void *) line->end,
 			(long long int) (line->end - line->start)
 		);
+		return 1;
 	}
 	// find keyword delimitations
-	int line_size = line->end - line->start;
+	ptrdiff_t line_size = line->end - line->start;
 	char* value_start = memchr(line->start, '=', line_size);
 	if (value_start == NULL){
 		printf("Error: invalid statement, equal sign missing" ENDL);
@@ -257,15 +259,15 @@ int parse_config_file_line(const Segment* line, Config* conf){
 		}
 		char* path_start = first_quote + 1;
 
-		char* second_quote = memchr(path_start, '"', PATH_MAX);
+		char* second_quote = memchr(path_start, '"', MAXIMUM_PATH());
 		if (second_quote == NULL) {
 			printf("Error: second quotation mark around source path not found" ENDL);
 			return 1;
 		}
 		char* path_end = second_quote - 1;
 
-		int size = path_end - path_start + 1;
-		if (size + 1 >= PATH_MAX) {
+		ptrdiff_t size = path_end - path_start + 1;
+		if (size + 1 >= MAXIMUM_PATH()) {
 			printf("Error: source path too long" ENDL);
 			return 1;
 		}
@@ -282,15 +284,15 @@ int parse_config_file_line(const Segment* line, Config* conf){
 		}
 		char *path_start = first_quote + 1;
 
-		char* second_quote = memchr(path_start, '"', PATH_MAX);
+		char* second_quote = memchr(path_start, '"', MAXIMUM_PATH());
 		if (second_quote == NULL) {
 			printf("Error: second quotation mark around dest path not found" ENDL);
 			return 1;
 		}
 		char* path_end = second_quote - 1;
 
-		int size = path_end - path_start + 1;
-		if (size + 1 >= PATH_MAX) {
+		ptrdiff_t size = path_end - path_start + 1;
+		if (size + 1 >= MAXIMUM_PATH()) {
 			printf("Error: dest path too long" ENDL);
 			return 1;
 		}
@@ -316,6 +318,7 @@ int parse_config_file_line(const Segment* line, Config* conf){
 int get_config(const char* path, Config* conf){
 	printf("READ CONFIG" ENDL);
 	FILE *file = fopen(path, "r");
+	int errval = errno;
 	if (file == NULL) {
 		printf("Error opening file. %d: %s" ENDL, errno, strerror(errno));
 		errno = 0;
@@ -333,7 +336,7 @@ int get_config(const char* path, Config* conf){
 
 	printf("pasting file content to buffer" ENDL);
 	errno = 0;
-	ssize_t len = fread(buff, 1, BUFFSIZE, file);
+	int64_t len = fread(buff, 1, BUFFSIZE, file);
 	int read_errval = errno;
 
 	if (len < 0) {

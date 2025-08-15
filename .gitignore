@@ -2,3 +2,5 @@
 .DS_Store
 .clangd
 .cache/
+c_parser/CMakeSettings.json
+.vs/

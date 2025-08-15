@@ -14,6 +14,7 @@
 #include <sysexits.h>
 #include <sys/mman.h>
 #elif defined(_WIN32)
+#define _CRT_SECURE_NO_WARNINGS 1
 #include <windows.h>
 #include "../include/win_err_status_numbers.h"
 #endif
@@ -77,7 +78,32 @@ void free_comp_buff(void){
 }
 
 // ================================= THE REST =================================
-
+#ifdef _WIN32
+void print_file_attributes(ULONG attrs) {
+	if (attrs & FILE_ATTRIBUTE_READONLY) printf("FILE_ATTRIBUTE_READONLY" ENDL);
+	if (attrs & FILE_ATTRIBUTE_HIDDEN) printf("FILE_ATTRIBUTE_HIDDEN" ENDL);
+	if (attrs & FILE_ATTRIBUTE_SYSTEM) printf("FILE_ATTRIBUTE_SYSTEM" ENDL);
+	if (attrs & FILE_ATTRIBUTE_DIRECTORY) printf("FILE_ATTRIBUTE_DIRECTORY" ENDL);
+	if (attrs & FILE_ATTRIBUTE_ARCHIVE) printf("FILE_ATTRIBUTE_ARCHIVE" ENDL);
+	if (attrs & FILE_ATTRIBUTE_DEVICE) printf("FILE_ATTRIBUTE_DEVICE" ENDL);
+	if (attrs & FILE_ATTRIBUTE_NORMAL) printf("FILE_ATTRIBUTE_NORMAL" ENDL);
+	if (attrs & FILE_ATTRIBUTE_TEMPORARY) printf("FILE_ATTRIBUTE_TEMPORARY" ENDL);
+	if (attrs & FILE_ATTRIBUTE_SPARSE_FILE) printf("FILE_ATTRIBUTE_SPARSE_FILE" ENDL);
+	if (attrs & FILE_ATTRIBUTE_REPARSE_POINT) printf("FILE_ATTRIBUTE_REPARSE_POINT" ENDL);
+	if (attrs & FILE_ATTRIBUTE_COMPRESSED) printf("FILE_ATTRIBUTE_COMPRESSED" ENDL);
+	if (attrs & FILE_ATTRIBUTE_OFFLINE) printf("FILE_ATTRIBUTE_OFFLINE" ENDL);
+	if (attrs & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED) printf("FILE_ATTRIBUTE_NOT_CONTENT_INDEXED" ENDL);
+	if (attrs & FILE_ATTRIBUTE_ENCRYPTED) printf("FILE_ATTRIBUTE_ENCRYPTED" ENDL);
+	if (attrs & FILE_ATTRIBUTE_INTEGRITY_STREAM) printf("FILE_ATTRIBUTE_INTEGRITY_STREAM" ENDL);
+	if (attrs & FILE_ATTRIBUTE_VIRTUAL) printf("FILE_ATTRIBUTE_VIRTUAL" ENDL);
+	if (attrs & FILE_ATTRIBUTE_NO_SCRUB_DATA) printf("FILE_ATTRIBUTE_NO_SCRUB_DATA" ENDL);
+	if (attrs & FILE_ATTRIBUTE_EA) printf("FILE_ATTRIBUTE_EA" ENDL);
+	if (attrs & FILE_ATTRIBUTE_PINNED) printf("FILE_ATTRIBUTE_PINNED" ENDL);
+	if (attrs & FILE_ATTRIBUTE_UNPINNED) printf("FILE_ATTRIBUTE_UNPINNED" ENDL);
+	if (attrs & FILE_ATTRIBUTE_RECALL_ON_OPEN) printf("FILE_ATTRIBUTE_RECALL_ON_OPEN" ENDL);
+	if (attrs & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) printf("FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS" ENDL);
+}
+#endif
 
 void specify_os_error_and_exit(void){
 	/*
@@ -180,15 +206,18 @@ Eol_flag Check_input_flags(Eol_flag from_config, Eol_flag as_detected) {
 }
 
 int parse_readbuffer_line(char* start, char** end, ParserConfig* conf, float* outptr) {
+	if (start == NULL) {
+		return PARSING_ERR_LIMIT;
+	}
 	char* current = start;
 	char* prev = start;
-	char* fend;
+	char* fend = start;
 
 	char errcount = 0;
-	off_t offset;
+	ptrdiff_t offset;
 
 	const char endl = conf->line.eol == EOL_UNIX ? '\n':'\r';
-	const char max_sep_dist = conf->field.max + (endl=='\n' ? 1 : 2);
+	const short max_sep_dist = conf->field.max + (endl=='\n' ? 1 : 2);
 
 	for (size_t count = 0 ; (count < conf->line.field_count) ; count++) {
 		fend = current;
@@ -222,6 +251,7 @@ int parse_readbuffer_line(char* start, char** end, ParserConfig* conf, float* ou
 
 		if ((*prev == endl) || (errcount >= PARSING_ERR_LIMIT)) break;
 	}
+	if (fend == NULL) return PARSING_ERR_LIMIT;
 
 	if (*fend == '\n') fend++;
 	*end = fend;
@@ -264,7 +294,7 @@ int init_RowLayout(RowLayout *rl, const RowInfo *ri, const Config *cf) {
 	rl->max_field_size = cf->max_field_size;
 	rl->min_field_size = cf->min_field_size;
 	rl->field_count = ri->count;
-	rl->max_size = (cf->max_field_size + rl->sep_size) * ri->count - rl->sep_size + rl->eol_size;
+	rl->max_size = ((int64_t) cf->max_field_size + rl->sep_size) * ri->count - rl->sep_size + rl->eol_size;
 	return 0;
 }
 
@@ -284,9 +314,9 @@ int init_CompBuffer(CompBuffer *cb, const RowLayout *row_lo, const Config *cf) {
 
 int init_WriteBufferStruct(WriteBuffer* wb, ProcValBuffer* pvb, Config* conf){
 	//sizes of different elements
-	int sep = 1;
+	char sep = 1;
 	int stride = conf->output_field_size + sep;
-	int eol = conf->eol_flag == EOL_UNIX ? 1 : 2;
+	char eol = conf->eol_flag == EOL_UNIX ? 1 : 2;
 
 	// we don't malloc the whole buffer
 	wb->buffer = NULL;
@@ -295,6 +325,7 @@ int init_WriteBufferStruct(WriteBuffer* wb, ProcValBuffer* pvb, Config* conf){
 	div_t qr = div(pvb->row_length, conf->tile_width);
 	int file_count = qr.quot + (qr.rem ? 1 : 0);
 	wb->file_buffers = (FileBuffer *) malloc(file_count * sizeof(FileBuffer));
+	if (wb->file_buffers == NULL) return 1;
 
 	//some data
 	wb->file_buffer_count = file_count;
@@ -309,7 +340,7 @@ int init_WriteBufferStruct(WriteBuffer* wb, ProcValBuffer* pvb, Config* conf){
 		fb->buffer = NULL;
 		fb->row_length = (i != file_count - 1) ? conf->tile_width : qr.rem;
 		fb->row_size = fb->row_length * stride - sep + eol;
-		fb->bytesize = fb->row_size * pvb->row_count;
+		fb->bytesize = (int64_t) fb->row_size * pvb->row_count;
 		wb->bytesize += fb->bytesize;
 	}
 	if (wb->file_buffers == NULL) return 1;
@@ -423,8 +454,8 @@ DirCheckError check_or_create_dest_dir(char* dest_dir){
 		return DC_CANTCREAT;
 	}
 
-	char dirglob[PATH_MAX];
-	if (strlen(dest_dir) + 3 > PATH_MAX) {
+	char dirglob[MAXIMUM_PATH()];
+	if (strlen(dest_dir) + 3 > MAXIMUM_PATH()) {
 		printf("Error: The destination path is too long" ENDL);
 		return DC_PATH_TOO_LONG;
 	}
@@ -705,9 +736,9 @@ void subsample(CompBuffer* cpb, ProcValBuffer* pvb) {
 }
 
 int read_chunk(
-	ReadBuffer *rd,
+	const ReadBuffer *rd,
 	CompBuffer *cp,
-	RowLayout *row_lo,
+	const RowLayout *row_lo,
 	MapOffsets *off,
 	uint64_t file_size,
 	char* read_complete_flag
@@ -792,21 +823,19 @@ void write_buffers_to_files(WriteBuffer *wr, Config* cf, int tile_row){
 		// due diligence done at beginning of main,
 		// if there are any error while creating the file
 		// skip to next file
-		char path[PATH_MAX];
+		char path[MAXIMUM_PATH()];
 		int char_count =
-			snprintf(path, PATH_MAX, "%s/row%.3d_col%.3d.csv", cf->dest, tile_row, i);
-		if (char_count >= PATH_MAX) {
+			snprintf(path, MAXIMUM_PATH(), "%s/row%.3d_col%.3d.csv", cf->dest, tile_row, i);
+		if (char_count >= MAXIMUM_PATH()) {
 			printf(ENDL);
 			die("pathname too big!", EX_SOFTWARE);
 		}
 
 		errno = 0;
-		int openflags = O_WRONLY | O_CREAT | O_EXCL;
-		int modflags = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-		int ofd = open(path, openflags, modflags);
+		FILE *fp = fopen(path, "w");
 		int err = errno;
 
-		if (ofd < 0) {
+		if (fp == NULL) {
 			printf("an error occured while opening an output file" ENDL);
 			printf("path: %s" ENDL, path);
 
@@ -820,7 +849,7 @@ void write_buffers_to_files(WriteBuffer *wr, Config* cf, int tile_row){
 
 			// TODO: handle write errors
 			errno = 0;
-			unsigned int written_bytes = write(ofd, fb->buffer, fb->bytesize);
+			unsigned int written_bytes = fwrite(fb->buffer, 1, fb->bytesize, fp);
 			int errval = errno;
 
 			if (written_bytes < 0) {
@@ -839,16 +868,16 @@ void write_buffers_to_files(WriteBuffer *wr, Config* cf, int tile_row){
 				);
 			}
 
-			close(ofd);
+			fclose(fp);
 		}
 	}
 }
 
 int write_FullFileBuffer_to_file(FullFileBuffer *ff, Config* cf){
-	char path[PATH_MAX];
+	char path[MAXIMUM_PATH()];
 	int char_count =
-		snprintf(path, PATH_MAX, "%s/resized_full.csv", cf->dest);
-	if (char_count >= PATH_MAX) {
+		snprintf(path, MAXIMUM_PATH(), "%s/resized_full.csv", cf->dest);
+	if (char_count >= MAXIMUM_PATH()) {
 		printf(ENDL);
 		die("pathname too big!", EX_SOFTWARE);
 	}
@@ -859,12 +888,10 @@ int write_FullFileBuffer_to_file(FullFileBuffer *ff, Config* cf){
 	// ...
 
 	errno = 0;
-	int openflags = O_WRONLY | O_CREAT | O_APPEND;
-	int modflags = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-	int ofd = open(path, openflags, modflags);
+	FILE *fp = fopen(path, "w");
 	int err = errno;
 
-	if (ofd < 0) {
+	if (fp == NULL) {
 		printf("an error occured while opening an output file" ENDL);
 		printf("path: %s" ENDL, path);
 
@@ -873,7 +900,7 @@ int write_FullFileBuffer_to_file(FullFileBuffer *ff, Config* cf){
 	}
 
 	errno = 0;
-	unsigned int written_bytes = write(ofd, ff->buffer, ff->bytesize);
+	unsigned int written_bytes = fwrite(ff->buffer, 1, ff->bytesize, fp);
 	int errval = errno;
 
 	if (written_bytes < 0) {
@@ -881,7 +908,7 @@ int write_FullFileBuffer_to_file(FullFileBuffer *ff, Config* cf){
 			"ERROR n°%d: %s while writing to file %s" ENDL,
 			errval, strerror(errval), path
 		);
-		close(ofd);
+		fclose(fp);
 		return 1;
 	}
 
@@ -894,7 +921,7 @@ int write_FullFileBuffer_to_file(FullFileBuffer *ff, Config* cf){
 		);
 	}
 
-	close(ofd);
+	fclose(fp);
 	return 0;
 }
 
@@ -1046,7 +1073,7 @@ int get_row_layout_from_fp(
  *
  * @return 0 if the handle
  */
-HANDLE get_normal_file_handle(char *path, ErrMsg *err){
+HANDLE get_normal_file_handle(char* path, ErrMsg* err) {
 	HANDLE handle = INVALID_HANDLE_VALUE;
 	WIN32_FIND_DATA ffd;
 
@@ -1062,7 +1089,10 @@ HANDLE get_normal_file_handle(char *path, ErrMsg *err){
 	}
 
 	DWORD attrs = ffd.dwFileAttributes;
-	if (!(attrs & FILE_ATTRIBUTE_NORMAL)) {
+	ULONG archived_file = attrs & FILE_ATTRIBUTE_ARCHIVE && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
+	if (!(attrs & FILE_ATTRIBUTE_NORMAL || archived_file)) {
+		printf("input file has the following Attributes: %lx" ENDL, attrs);
+		print_file_attributes(attrs);
 		strncpy(
 			err->msg,
 			"Error: Input path may not point to a file,"
@@ -1111,7 +1141,7 @@ int main(int argc, char* argv[]){
 	// open source file
 	printf("input file path = `%s`" ENDL, conf.source);
 	#ifdef _WIN32
-	input_fp = fopen(conf.source, O_RDONLY);
+	input_fp = fopen(conf.source, "r");
 
 	if (atexit(close_input_fp)) {
 		die("could not set file auto-closing at exit", EX_SOFTWARE);
@@ -1203,7 +1233,7 @@ int main(int argc, char* argv[]){
 	printf("Setup finished, starting processing" ENDL);
 
 	char INPUT_READING_COMPLETE = 0;
-	char FULLFILE_FAILED = 0;
+	int FULLFILE_FAILED = 0;
 
 	// We don't know the number of rows in advance so no for loop
 	while(!INPUT_READING_COMPLETE) {
@@ -1262,7 +1292,7 @@ int main(int argc, char* argv[]){
 			// calc write buff row count again
 			printf("last chunk reached [%d]" ENDL, tile_row);
 			pvbuff.row_count = read_rows >> 2;
-			pvbuff.bytesize = pvbuff.row_count * pvbuff.row_length;
+			pvbuff.bytesize = (int64_t) pvbuff.row_count * pvbuff.row_length;
 		}
 
 		pvbuff.start = (float *) malloc(pvbuff.bytesize);

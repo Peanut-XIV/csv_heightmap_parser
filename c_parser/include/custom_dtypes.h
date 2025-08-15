@@ -5,16 +5,23 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#ifdef _WIN32
+#define MAXIMUM_PATH( ... ) MAX_PATH
+#else
+#define MAXIMUM_PATH( ... ) PATH_MAX
+#endif
 
 #if defined(__APPLE__) || defined(__LINUX__)
 #include <limits.h>
 #include <stddef.h>
+
 #elif defined(_WIN32)
 #include <windows.h>
+
 typedef union {
 		DWORDLONG full;
 		DWORD parts[2];
-	} BIG_WORD; // e.g. "F*CK"
+} BIG_WORD; // e.g. "F*CK"
 #endif
 
 
@@ -31,13 +38,13 @@ typedef struct {
 typedef struct {
 	// parameters from the regular c_parser usage
 	// should be merged with Config struct
-	unsigned short tile_width;
-	unsigned short tile_height;
-	unsigned  char min_field_size;
-	unsigned  char max_field_size;
+	int32_t tile_width;
+	int32_t tile_height;
+	unsigned short min_field_size;
+	unsigned short max_field_size;
 	Eol_flag eol_flag;
-	char source[PATH_MAX];
-	char dest[PATH_MAX];
+	char source[MAXIMUM_PATH()];
+	char dest[MAXIMUM_PATH()];
 } Params;
 
 typedef struct{
@@ -49,8 +56,8 @@ typedef struct{
 	unsigned  char max_field_size;
 	unsigned  char output_field_size;
 	Eol_flag eol_flag;
-	char source[PATH_MAX];
-	char dest[PATH_MAX];
+	char source[MAXIMUM_PATH()];
+	char dest[MAXIMUM_PATH()];
 } Config;
 
 typedef struct{
@@ -68,8 +75,8 @@ typedef struct {
 } RowLayout;
 
 typedef struct {
-	int32_t page_bytesize;
-	int32_t page_count;
+	int64_t page_bytesize;
+	int64_t page_count;
 	int64_t bytesize;
 	char *start;
 } ReadBuffer;
@@ -126,7 +133,7 @@ typedef struct {
 	int32_t row_length;
 	int32_t row_bytesize;
 	int32_t row_count;
-	int eol_size;
+	short eol_size;
 } FullFileBuffer;
 
 typedef struct {

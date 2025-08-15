@@ -1,8 +1,12 @@
-#include <unistd.h>
 #include <stdio.h>
 #include <limits.h>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include "../include/utils.h"
+#include "../include/custom_dtypes.h"
 
 void print_sizes(void){
 	printf("=========================" ENDL);
@@ -19,8 +23,13 @@ void print_sizes(void){
 
 
 int main(void){
+#ifdef _WIN32
+	printf("no pagesize for U" ENDL);
+#else
+	// MSVC linker fails to find getpagesize here...
 	printf("page size is %lli bytes" ENDL, (long long int) getpagesize());
-	printf("max path length is %d bytes" ENDL, PATH_MAX);
+#endif
+	printf("max path length is %d bytes" ENDL, MAXIMUM_PATH());
 	printf("NULL pointer is %p" ENDL, NULL);
 	print_sizes();
 	return 0;

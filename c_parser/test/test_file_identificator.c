@@ -3,9 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 
 #define FAIL( str ) RED_BG BLK_FG str DEF_BG DEF_FG
 #define PASS( str ) GRN_BG BLK_FG str DEF_BG DEF_FG
@@ -54,16 +58,16 @@ int test_long_row(EOL_t ftype) {
 		return 1;
 	}
 
-	int fd = open(path, O_RDONLY);
-	if (fd < 0) {
+	FILE *fp = fopen(path, "r");
+	if (fp == NULL) {
 		printf("\t\t%s: " FAIL("Could not open %s File") "\n", test_name, type_name);
 		printf("Errno %d: %s\n", errno, strerror(errno));
 		free(buffer_p);
 		return 1;
 	}
 
-	ssize_t len = read(fd, buffer_p, MAXI_LINE);
-	if (fd < 0) {
+	int len = fread(buffer_p, 1, MAXI_LINE, fp);
+	if (len <= 0) {
 		printf("\t\t%s: " FAIL("An error occured while reading a %s file") "\n", test_name, type_name);
 		printf("Errno %d: %s\n", errno, strerror(errno));
 		free(buffer_p);
@@ -73,7 +77,7 @@ int test_long_row(EOL_t ftype) {
 	RowInfo info = {buffer_p, 0, -1};
 	if (identify_line(&info, MAXI_LINE)) {
 		printf("\t\t%s: " FAIL("Failed finding EOL of a %s file") "\n", test_name, type_name);
-		printf("File length was %zi bytes.\n", len);
+		printf("File length was %lli bytes.\n", (long long int) len);
 		print_RowInfo(&info);
 		free(buffer_p);
 		return 1;
@@ -89,7 +93,7 @@ int test_long_row(EOL_t ftype) {
 
 	if (info.length != len) {
 		printf("\t\t%s: " FAIL("Failed counting number of bytes in %s file") "\n", test_name, type_name);
-		printf("File length was %zi bytes.\n", len);
+		printf("File length was %lli bytes.\n", (long long int) len);
 		print_RowInfo(&info);
 		failed = 1;
 	}

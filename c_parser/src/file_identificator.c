@@ -41,7 +41,9 @@ int identify_line(RowInfo* info, int64_t max_line_len) {
 	}
 	// if the last char was '\n', `i - info->counter` would equal 0, but there
 	// would be 1 char, hence the `+1`.
-	info->length = i - info->string + 1;
+	ptrdiff_t length = i - info->string + 1;
+	if (length > INT32_MAX) return 1;
+	info->length = length;
 	// printf("line length is %d" ENDL, info->length);
 	info->count = counter;
 	if (info->length < 0) return 1;

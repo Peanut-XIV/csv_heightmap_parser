@@ -31,7 +31,12 @@ size_t file_size_from_fd(int fildes) {
 uint64_t file_size_from_handle(HANDLE file) {
 	BIG_WORD size = {0};
 	size.parts[0] = GetFileSize(file, &size.parts[1]);
-	if (size.parts[0] == INVALID_FILE_SIZE) return 0;
+	if (size.parts[0] == INVALID_FILE_SIZE) {
+		printf("Error: %d" ENDL, GetLastError());
+		printf("filetype: %d\n", GetFileType(file));
+		printf("Error: %d" ENDL, GetLastError());
+		return 0;
+	}
 	return size.full;
 }
 #endif
