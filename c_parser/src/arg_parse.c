@@ -317,11 +317,11 @@ int parse_config_file_line(const Segment* line, Config* conf){
 
 int get_config(const char* path, Config* conf){
 	printf("READ CONFIG" ENDL);
+	errno = 0;
 	FILE *file = fopen(path, "r");
 	int errval = errno;
 	if (file == NULL) {
-		printf("Error opening file. %d: %s" ENDL, errno, strerror(errno));
-		errno = 0;
+		printf("Error opening file. %d: %s" ENDL, errval, strerror(errval));
 		return 1;
 	}
 

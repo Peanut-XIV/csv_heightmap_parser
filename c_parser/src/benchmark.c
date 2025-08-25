@@ -1199,7 +1199,7 @@ int main(int argc, char* argv[]){
 	uint64_t file_size = 0;
 
 	#if defined(__APPLE__) || defined(__LINUX__)
-	file_size = get_file_size_fd(input_fd);
+	file_size = file_size_from_fd(input_fd);
 	if (file_size == 0) die("could not read source file stats", EX_OSERR);
 
 	#elif defined(_WIN32)
@@ -1322,7 +1322,7 @@ int main(int argc, char* argv[]){
 			// calc write buff row count again
 			printf("last chunk reached [%d]" ENDL, tile_row);
 			pvbuff.row_count = read_rows / 2;
-			pvbuff.bytesize = (int64_t) pvbuff.row_count * pvbuff.row_length;
+			pvbuff.bytesize = (int64_t) pvbuff.row_count * pvbuff.row_length * sizeof(float);
 		}
 
 		pvbuff.start = (float *) malloc(pvbuff.bytesize);

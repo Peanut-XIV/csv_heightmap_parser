@@ -24,7 +24,7 @@ void init_CompBufferStruct(CompBuffer *cb, const RowLayout *row_lo, const Config
 }
 
 void init_ProcValBufferStruct(ProcValBuffer *pvb, const RowLayout *row_lo, const Config *cf) {
-	pvb->row_length = row_lo->field_count >> 1;
+	pvb->row_length = row_lo->field_count / 2;
 	pvb->row_count = cf->tile_height;
 	pvb->bytesize = pvb->row_count * pvb->row_length * sizeof(float);
 	pvb->start = NULL;
