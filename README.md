@@ -16,7 +16,7 @@ path/to/parser path/to/config/file
 ```
 
 ```cmd
-# in windows cmd
+REM in windows cmd
 C:\path\to\parser.exe path\to\config\file
 ```
 
