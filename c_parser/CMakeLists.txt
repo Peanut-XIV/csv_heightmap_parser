@@ -2,14 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 project(c_parser VERSION 1.0.0 LANGUAGES C)
 
 add_executable(
-	enduser_exec
-	src/c_parser.c
-	src/arg_parse.c
-	include/arg_parse.h
-	include/custom_dtypes.h
-)
-
-add_executable(
 	test_file_identificator
 
 	test/test_file_identificator.c
@@ -23,9 +15,9 @@ add_executable(
 )
 
 add_executable(
-	benchmark
+	parser
 
-	src/benchmark.c
+	src/parser.c
 
 	src/arg_parse.c
 	include/arg_parse.h
@@ -42,8 +34,6 @@ add_executable(
 	include/custom_dtypes.h
 )
 
-add_executable(print_info src/print_info.c)
-
 if(WIN32 AND CMAKE_HOST_UNIX)
 	message(
 		"The project will be compiled with mingw and will "
@@ -54,10 +44,10 @@ if(WIN32 AND CMAKE_HOST_UNIX)
 endif()
 
 if(MSVC)
-	target_compile_options(benchmark PRIVATE /W4)
+	target_compile_options(parser PRIVATE /W4)
 else()
-	target_compile_options(benchmark PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	target_compile_options(parser PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
-set_property(TARGET enduser_exec PROPERTY C_STANDARD 11)
-set_property(TARGET enduser_exec PROPERTY C_STANDARD_REQUIRED 11)
+set_property(TARGET parser PROPERTY C_STANDARD 11)
+set_property(TARGET parser PROPERTY C_STANDARD_REQUIRED 11)
