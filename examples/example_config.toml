@@ -1,0 +1,26 @@
+# the min and max size a value can take (in characters)
+# without counting the separator in the source file
+# ...,243.990,...
+#     ^^^^^^^  Here it is 7
+# ...,-1.000,...
+#     ^^^^^^   Here it is 6
+min_field_size = 5
+max_field_size = 8
+
+# Same but for the output file. It is better for it to be fixed
+# in case the file needs to be parsed again in the future
+# ...,±XXX.XXX,...
+#     ^^^^^^^^ Here, there are always 8 characters per value
+output_field_size = 8
+
+# Type of end of line in the source file: d for DOS and u for UNIX
+# Will be reused in the output files
+eol_flag = d
+
+# Size of the output CSV files
+tile_width = 1000
+tile_height = 1000
+
+source = "/example/path/to/source/ODP_208_1262B_22H_3_65-66cm_967P_90A_3D.csv"
+dest = "/example/path/to/destination/ODP_22H/"
+
